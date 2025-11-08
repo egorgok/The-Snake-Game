@@ -1,0 +1,11 @@
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\bin\Debug\TheSnakeGame.exe.config
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\bin\Debug\TheSnakeGame.exe
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\bin\Debug\TheSnakeGame.pdb
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.csproj.AssemblyReference.cache
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.Properties.Resources.resources
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.csproj.GenerateResource.cache
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.csproj.CoreCompileInputs.cache
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.exe
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.pdb
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.Start.resources
+C:\Users\egorgok\source\repos\TheSnakeGame\TheSnakeGame\obj\Debug\TheSnakeGame.Game.resources
