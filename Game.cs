@@ -11,9 +11,18 @@ namespace TheSnakeGame
         private char nextDirection = 'd';
         private Timer movementTimer;
         private int baseSpeed = 150;
-        private int speedIncreaseInterval = 5; 
-        private int minSpeed = 50; 
+        private int speedIncreaseInterval = 5;
+        private int minSpeed = 50;
         private Random rnd = new Random();
+        private bool boost = false;
+
+        // Добавляем переменные для ускорения
+        private int boostSpeed = 50;
+        private bool isBoostActive = false;
+        private DateTime boostEndTime;
+        private Keys lastKey = Keys.None;
+        private DateTime lastWKeyPress = DateTime.MinValue;
+        private const int DoublePressThreshold = 300;
 
         private List<Point> snakeSegments = new List<Point>();
         private List<PictureBox> bodySegments = new List<PictureBox>();
@@ -33,6 +42,7 @@ namespace TheSnakeGame
             // Настройка обработки клавиш
             this.KeyPreview = true;
             this.KeyDown += ChangeDirection;
+            this.KeyPress += Game_KeyPress; // Оставляем существующий обработчик
             this.DoubleBuffered = true;
 
             // Настройка таймера
@@ -54,25 +64,40 @@ namespace TheSnakeGame
             SpawnApple2();
         }
 
-        private void CreateInitialSegments()
+        
+        private void ActivateBoost()
         {
-            // Создаем сегменты начиная с индекса 1 (голова уже есть)
-            for (int i = 1; i < snakeSegments.Count; i++)
+            if (score > 0 && !isBoostActive)
             {
-                AddVisualSegment(i);
+                isBoostActive = true;
+                score--; // тратим 1 очко
+                boostEndTime = DateTime.Now.AddSeconds(5);
+
+                // Сохраняем текущую скорость и устанавливаем ускоренную
+                movementTimer.Interval = boostSpeed;
+
+                Console.WriteLine($"Ускорение активировано! Осталось очков: {score}");
             }
         }
 
-        private void ChangeDirection(object sender, KeyEventArgs e)
+        
+        private void DeactivateBoost()
         {
-            if (e.KeyCode == Keys.W && currentDirection != 's') nextDirection = 'w';
-            else if (e.KeyCode == Keys.S && currentDirection != 'w') nextDirection = 's';
-            else if (e.KeyCode == Keys.A && currentDirection != 'd') nextDirection = 'a';
-            else if (e.KeyCode == Keys.D && currentDirection != 'a') nextDirection = 'd';
+            isBoostActive = false;
+            // Восстанавливаем нормальную скорость через UpdateGameSpeed
+            UpdateGameSpeed();
+            Console.WriteLine("Ускорение закончилось!");
         }
 
+        
         private void Move(object sender, EventArgs e)
         {
+            // Проверяем, не закончилось ли ускорение
+            if (isBoostActive && DateTime.Now >= boostEndTime)
+            {
+                DeactivateBoost();
+            }
+
             currentDirection = nextDirection;
 
             // Вычисляем новую позицию головы
@@ -97,8 +122,139 @@ namespace TheSnakeGame
             // Проверяем столкновение с границами
             CheckBoundaries();
 
-            // Скорость
-            UpdateGameSpeed();
+            // Скорость (только если ускорение не активно)
+            if (!isBoostActive)
+            {
+                UpdateGameSpeed();
+            }
+        }
+
+        
+        private void ChangeDirection(object sender, KeyEventArgs e)
+        {
+            // Обработка двойного нажатия W
+            if (e.KeyCode == Keys.W)
+            {
+                if (lastKey == Keys.W &&
+                    (DateTime.Now - lastWKeyPress).TotalMilliseconds <= DoublePressThreshold)
+                {
+                    ActivateBoost();
+                }
+
+                lastKey = Keys.W;
+                lastWKeyPress = DateTime.Now;
+            }
+            else
+            {
+                lastKey = e.KeyCode;
+            }
+
+            // Существующая логика смены направления
+            if (e.KeyCode == Keys.W && currentDirection != 's') nextDirection = 'w';
+            else if (e.KeyCode == Keys.S && currentDirection != 'w') nextDirection = 's';
+            else if (e.KeyCode == Keys.A && currentDirection != 'd') nextDirection = 'a';
+            else if (e.KeyCode == Keys.D && currentDirection != 'a') nextDirection = 'd';
+        }
+
+        
+        private void Game_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == 'w' && currentDirection == 'w')
+            {
+                boost = true;
+                score = score - 1;
+            }
+        }
+
+        
+        private void UpdateVisualSegments()
+        {
+            // Обновляем голову
+            body1.Location = snakeSegments[0];
+
+            // Синхронизируем количество визуальных сегментов с логическими
+            while (bodySegments.Count < snakeSegments.Count)
+            {
+                AddVisualSegment(bodySegments.Count);
+            }
+
+            while (bodySegments.Count > snakeSegments.Count)
+            {
+                RemoveLastSegment();
+            }
+
+            // Обновляем позиции сегментов
+            for (int i = 1; i < snakeSegments.Count; i++)
+            {
+                bodySegments[i].Location = snakeSegments[i];
+            }
+
+            // Добавляем информацию об ускорении в заголовок
+            string boostStatus = isBoostActive ? " [BOOST ACTIVE]" : "";
+            this.Text = $"Snake Game - Score: {score} - Length: {snakeSegments.Count}{boostStatus}";
+        }
+
+        
+        private void RestartGame()
+        {
+            // Останавливаем таймер
+            movementTimer.Stop();
+
+            // Сбрасываем ускорение
+            isBoostActive = false;
+
+            // Очищаем сегменты змейки (кроме головы)
+            for (int i = bodySegments.Count - 1; i >= 1; i--)
+            {
+                var segment = bodySegments[i];
+                bodySegments.RemoveAt(i);
+                this.Controls.Remove(segment);
+                segment.Dispose();
+            }
+
+            // Сбрасываем переменные
+            snakeSegments.Clear();
+            currentDirection = 'd';
+            nextDirection = 'd';
+            score = 0;
+            lastKey = Keys.None;
+            lastWKeyPress = DateTime.MinValue;
+
+            // Восстанавливаем начальную змейку
+            for (int i = 0; i < 3; i++)
+            {
+                snakeSegments.Add(new Point(100 - i * SegmentSize, 100));
+            }
+
+            // Обновляем голову
+            body1.Location = snakeSegments[0];
+
+            // Создаем остальные сегменты
+            for (int i = 1; i < snakeSegments.Count; i++)
+            {
+                AddVisualSegment(i);
+            }
+
+            // Переспавниваем яблоки
+            SpawnApple1();
+            SpawnApple2();
+
+            // Сбрасываем скорость
+            movementTimer.Interval = baseSpeed;
+
+            // Запускаем игру заново
+            movementTimer.Start();
+
+            this.Text = $"Snake Game - Score: {score}";
+        }
+
+        
+        private void CreateInitialSegments()
+        {
+            for (int i = 1; i < snakeSegments.Count; i++)
+            {
+                AddVisualSegment(i);
+            }
         }
 
         private Point GetNewHeadPosition()
@@ -116,7 +272,6 @@ namespace TheSnakeGame
 
         private bool CheckSelfCollision(Point newHead)
         {
-            // Проверяем столкновение головы с телом (начиная с 4 сегмента)
             for (int i = 4; i < snakeSegments.Count; i++)
             {
                 if (newHead == snakeSegments[i])
@@ -146,106 +301,31 @@ namespace TheSnakeGame
 
         private void UpdateSnakePosition(Point newHead, bool ateApple)
         {
-            // Добавляем новую голову
             snakeSegments.Insert(0, newHead);
-
-            // Если не съели яблоко - удаляем хвост
             if (!ateApple)
             {
                 snakeSegments.RemoveAt(snakeSegments.Count - 1);
             }
         }
 
-        private void UpdateVisualSegments()
-        {
-            // Обновляем голову
-            body1.Location = snakeSegments[0];
-
-            // Синхронизируем количество визуальных сегментов с логическими
-            while (bodySegments.Count < snakeSegments.Count)
-            {
-                AddVisualSegment(bodySegments.Count);
-            }
-
-            while (bodySegments.Count > snakeSegments.Count)
-            {
-                RemoveLastSegment();
-            }
-
-            // Обновляем позиции сегментов
-            for (int i = 1; i < snakeSegments.Count; i++)
-            {
-                bodySegments[i].Location = snakeSegments[i];
-            }
-
-            this.Text = $"Snake Game - Score: {score} - Length: {snakeSegments.Count}";
-        }
-
         private void AddVisualSegment(int index)
         {
             PictureBox segment = new PictureBox();
             segment.Size = new Size(SegmentSize, SegmentSize);
-            segment.BackColor = (index % 2 == 0) ? Color.Green : Color.LightGreen; // Чередуем цвета для красоты
+            segment.BackColor = (index % 2 == 0) ? Color.Green : Color.LightGreen;
             segment.Location = snakeSegments[index];
 
             this.Controls.Add(segment);
             segment.BringToFront();
             bodySegments.Add(segment);
 
-            // Убедимся, что яблоки поверх змейки
             apple1.BringToFront();
             apple2.BringToFront();
         }
-        private void RestartGame()
-        {
-            // Останавливаем таймер
-            movementTimer.Stop();
 
-            // Очищаем сегменты змейки (кроме головы)
-            for (int i = bodySegments.Count - 1; i >= 1; i--)
-            {
-                var segment = bodySegments[i];
-                bodySegments.RemoveAt(i);
-                this.Controls.Remove(segment);
-                segment.Dispose();
-            }
-
-            // Сбрасываем переменные
-            snakeSegments.Clear();
-            currentDirection = 'd';
-            nextDirection = 'd';
-            score = 0;
-
-            // Восстанавливаем начальную змейку
-            for (int i = 0; i < 3; i++)
-            {
-                snakeSegments.Add(new Point(100 - i * SegmentSize, 100));
-            }
-
-            // Обновляем голову
-            body1.Location = snakeSegments[0];
-
-            // Создаем остальные сегменты
-            for (int i = 1; i < snakeSegments.Count; i++)
-            {
-                AddVisualSegment(i);
-            }
-
-            // Переспавниваем яблоки
-            SpawnApple1();
-            SpawnApple2();
-
-            // Сбрасываем скорость
-            movementTimer.Interval = baseSpeed;
-
-            // Запускаем игру заново
-            movementTimer.Start();
-
-            this.Text = $"Snake Game - Score: {score}";
-        }
         private void RemoveLastSegment()
         {
-            if (bodySegments.Count > 1) // Не удаляем голову
+            if (bodySegments.Count > 1)
             {
                 var lastSegment = bodySegments[bodySegments.Count - 1];
                 bodySegments.RemoveAt(bodySegments.Count - 1);
@@ -262,10 +342,11 @@ namespace TheSnakeGame
                 GameOver();
             }
         }
+
         private void UpdateGameSpeed()
         {
             int newSpeed = baseSpeed - (score / speedIncreaseInterval) * 10;
-            newSpeed = Math.Max(newSpeed, minSpeed); // Не даем скорости стать меньше минимума
+            newSpeed = Math.Max(newSpeed, minSpeed);
 
             if (movementTimer.Interval != newSpeed)
             {
@@ -273,11 +354,11 @@ namespace TheSnakeGame
                 Console.WriteLine($"Speed updated: {newSpeed}ms");
             }
         }
+
         private void GameOver()
         {
             movementTimer.Stop();
-            MessageBox.Show($"Конец! Счёт: {score}\nДлинна змеи: {snakeSegments.Count}", "Game Over");
-            var result = MessageBox.Show($"Конец! Счёт: {score}\nДлинна змеи: {snakeSegments.Count}", "Game Over",MessageBoxButtons.YesNo);
+            var result = MessageBox.Show($"Конец! Счёт: {score}\nДлинна змеи: {snakeSegments.Count}", "Game Over", MessageBoxButtons.YesNo);
             if (result == DialogResult.Yes)
             {
                 RestartGame();
@@ -306,7 +387,6 @@ namespace TheSnakeGame
             int x = rnd.Next(0, Math.Max(1, maxX)) * 5;
             int y = rnd.Next(0, Math.Max(1, maxY)) * 5;
 
-            // Проверяем, чтобы яблоко не появилось на змейке
             Point applePos = new Point(x, y);
             while (snakeSegments.Contains(applePos))
             {
@@ -326,7 +406,6 @@ namespace TheSnakeGame
         }
     }
 }
-
 
 
 
