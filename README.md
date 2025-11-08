@@ -15,6 +15,7 @@ A classic Snake game built with C# and Windows Forms. Control the snake, eat app
 ## Controls
 
 - **W** - Move Up
+- Press double **W** - Activate speed boost
 - **S** - Move Down  
 - **A** - Move Left
 - **D** - Move Right
